@@ -401,7 +401,8 @@ input, select { font-family: inherit; }
 }
 .timer.overtime { color: var(--accent); }
 .timer-controls { display: flex; gap: 8px; margin-top: 8px; }
-.timer-controls .btn { padding: 12px; font-size: 15px; }
+.timer-controls .btn { flex: 1; padding: 12px; font-size: 15px; }
+.timer-controls .btn-skip { flex: 0 0 auto; width: auto; }
 
 .actions-grid {
   display: grid;

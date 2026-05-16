@@ -266,6 +266,11 @@ function pauseClock(game) {
   save();
 }
 
+function skipClock(game, seconds) {
+  game.clock.elapsed += seconds;
+  save();
+}
+
 /* ---------------- Scoring & stats ---------------- */
 
 function usScore(game) {
@@ -744,6 +749,7 @@ function viewGame() {
         <div class="timer ${over ? 'overtime' : ''}" id="timer-display">${fmtClock(elapsed)}</div>
         <div class="timer-controls">
           ${timerBtn}
+          <button class="btn btn-ghost btn-skip" data-act="timer-skip">+10s</button>
           ${halfBtn}
         </div>
       </div>
@@ -1164,6 +1170,13 @@ function handleAct(act, target) {
     if (g.clock.running) pauseClock(g);
     else startClock(g);
     return render();
+  }
+
+  if (act === 'timer-skip') {
+    skipClock(g, 10);
+    render();
+    toast('Clock +10s');
+    return;
   }
 
   if (act === 'end-half') {
