@@ -744,6 +744,11 @@ function viewSummary() {
     <header class="topbar">
       <button class="icon-btn" data-act="${isLive ? 'open-game-live' : 'nav:history'}">&larr;</button>
       <h1>${isLive ? 'Live Stats' : 'Final Stats'}</h1>
+      ${isLive ? '' : `
+        <span class="spacer"></span>
+        <button class="icon-btn" data-act="edit-game" aria-label="Edit game">&#9999;&#65039;</button>
+        <button class="icon-btn icon-btn-danger" data-act="delete-game" aria-label="Delete game">&#128465;&#65039;</button>
+      `}
     </header>
 
     <div class="result-banner banner-${r}">
@@ -777,11 +782,7 @@ function viewSummary() {
 
     ${isLive
       ? `<button class="btn btn-primary btn-block" data-act="open-game-live">Back to Live Game</button>`
-      : `<div class="btn-row">
-           <button class="btn btn-ghost" data-act="edit-game">Edit Details</button>
-           <button class="btn btn-danger" data-act="delete-game">Delete Game</button>
-         </div>
-         <button class="btn btn-primary btn-block" data-act="nav:home">Done</button>`}
+      : `<button class="btn btn-primary btn-block" data-act="nav:home">Done</button>`}
   `;
 }
 

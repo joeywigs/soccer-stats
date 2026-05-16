@@ -64,6 +64,7 @@ input, select { font-family: inherit; }
   font-weight: 600;
 }
 .icon-btn:active { background: var(--card-2); }
+.icon-btn-danger { color: var(--red); border-color: rgba(229, 72, 77, .4); }
 
 /* ---------- Cards ---------- */
 .card {
@@ -118,7 +119,6 @@ input, select { font-family: inherit; }
   color: var(--text);
   border: 1px solid var(--line);
 }
-.btn-danger { background: transparent; color: var(--red); border: 1px solid var(--red); }
 .btn-block { margin-top: 10px; }
 .btn:disabled { opacity: .45; }
 .btn-sm { padding: 9px 12px; font-size: 14px; border-radius: 10px; width: auto; }
@@ -300,9 +300,6 @@ input, select { font-family: inherit; }
   accent-color: var(--green);
   flex-shrink: 0;
 }
-
-.btn-row { display: flex; gap: 10px; margin-top: 10px; }
-.btn-row .btn { flex: 1; }
 
 .tourney-tag {
   font-size: 12px;
