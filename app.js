@@ -16,7 +16,12 @@ let ui = { view: 'home', gameId: null };
 let pendingPick = null; // callback for the active roster picker
 
 function defaultState() {
-  return { version: 1, roster: [], games: [], activeGameId: null };
+  return { version: 1, roster: [], games: [], activeGameId: null, opponents: [], tournaments: [] };
+}
+
+function registerInto(list, name) {
+  const v = (name || '').trim();
+  if (v && !list.some((x) => x.toLowerCase() === v.toLowerCase())) list.push(v);
 }
 
 function loadState() {
@@ -26,6 +31,12 @@ function loadState() {
     const s = JSON.parse(raw);
     s.roster = s.roster || [];
     s.games = s.games || [];
+    s.opponents = s.opponents || [];
+    s.tournaments = s.tournaments || [];
+    for (const g of s.games) {
+      registerInto(s.opponents, g.opponent);
+      registerInto(s.tournaments, g.tournament);
+    }
     return s;
   } catch (e) {
     return defaultState();
@@ -79,6 +90,14 @@ function activeGame() {
   if (!state.activeGameId) return null;
   const g = getGame(state.activeGameId);
   return g && g.status === 'in_progress' ? g : null;
+}
+
+function uniqueOpponents() {
+  return state.opponents.slice().sort((a, b) => a.localeCompare(b));
+}
+
+function uniqueTournaments() {
+  return state.tournaments.slice().sort((a, b) => a.localeCompare(b));
 }
 
 function playerById(id) {
@@ -185,11 +204,12 @@ function seasonRecord() {
 
 /* ---------------- Mutations ---------------- */
 
-function createGame(opponent, date) {
+function createGame(opponent, date, tournament) {
   const g = {
     id: uid(),
     opponent: opponent,
     date: date,
+    tournament: tournament || null,
     createdAt: Date.now(),
     status: 'in_progress',
     half: 1,
@@ -199,8 +219,25 @@ function createGame(opponent, date) {
   };
   state.games.push(g);
   state.activeGameId = g.id;
+  registerInto(state.opponents, opponent);
+  registerInto(state.tournaments, tournament);
   save();
   return g;
+}
+
+function updateGame(g, opponent, date, tournament) {
+  g.opponent = opponent;
+  g.date = date;
+  g.tournament = tournament || null;
+  registerInto(state.opponents, opponent);
+  registerInto(state.tournaments, tournament);
+  save();
+}
+
+function deleteGame(id) {
+  state.games = state.games.filter((g) => g.id !== id);
+  if (state.activeGameId === id) state.activeGameId = null;
+  save();
 }
 
 function addEvent(game, type, extra) {
@@ -276,6 +313,7 @@ function render() {
     case 'history': html = viewHistory(); break;
     case 'roster': html = viewRoster(); break;
     case 'newgame': html = viewNewGame(); break;
+    case 'editgame': html = viewEditGame(); break;
     case 'game': html = viewGame(); break;
     case 'summary': html = viewSummary(); break;
     default: html = viewHome();
@@ -306,7 +344,10 @@ function viewHome() {
   let liveCard = '';
   if (ag) {
     liveCard = `<div class="card">
-      <div class="card-title"><span class="live-pill"><span class="live-dot"></span>Live</span></div>
+      <div class="live-head">
+        <span class="live-pill"><span class="live-dot"></span>Live</span>
+        ${ag.tournament ? `<span class="tourney-tag">&#127942; ${esc(ag.tournament)}</span>` : ''}
+      </div>
       <div class="hero-score">
         <div class="teams">
           <div class="team-name">Our Team</div>
@@ -373,7 +414,7 @@ function gameRow(g) {
     <span class="result-chip ${chip}">${chipText}</span>
     <span class="info">
       <span class="opp">vs ${esc(g.opponent)}</span>
-      <span class="sub">${fmtDate(g.date)}${g.status === 'in_progress' ? ' &middot; in progress' : ''}</span>
+      <span class="sub">${fmtDate(g.date)}${g.tournament ? ' &middot; ' + esc(g.tournament) : ''}${g.status === 'in_progress' ? ' &middot; in progress' : ''}</span>
     </span>
     <span class="score">${u}&ndash;${t}</span>
   </button>`;
@@ -463,6 +504,36 @@ function viewRoster() {
 
 /* ----- New Game ----- */
 
+function gameFormFields(g) {
+  const opp = g ? esc(g.opponent) : '';
+  const date = g ? g.date : todayISO();
+  const tourney = g && g.tournament ? esc(g.tournament) : '';
+  const isT = !!(g && g.tournament);
+  const oppOptions = uniqueOpponents().map((o) => `<option value="${esc(o)}"></option>`).join('');
+  const tOptions = uniqueTournaments().map((t) => `<option value="${esc(t)}"></option>`).join('');
+  return `
+    <div class="field">
+      <label for="opp">Opponent</label>
+      <input class="input" id="opp" type="text" list="opp-list"
+        placeholder="e.g. Riverside FC" value="${opp}" />
+      <datalist id="opp-list">${oppOptions}</datalist>
+    </div>
+    <div class="field">
+      <label for="gdate">Date</label>
+      <input class="input" id="gdate" type="date" value="${date}" />
+    </div>
+    <label class="check-row" for="is-tourney">
+      <input type="checkbox" id="is-tourney" ${isT ? 'checked' : ''} />
+      <span>This is a tournament game</span>
+    </label>
+    <div class="field tourney-field" id="tourney-field" ${isT ? '' : 'hidden'}>
+      <label for="tourney">Tournament name</label>
+      <input class="input" id="tourney" type="text" list="tourney-list"
+        placeholder="e.g. Spring Cup" value="${tourney}" />
+      <datalist id="tourney-list">${tOptions}</datalist>
+    </div>`;
+}
+
 function viewNewGame() {
   const noPlayers = activeRoster().length === 0;
   const warn = noPlayers
@@ -479,17 +550,26 @@ function viewNewGame() {
     </header>
     ${warn}
     <div class="card">
-      <div class="field">
-        <label for="opp">Opponent</label>
-        <input class="input" id="opp" type="text" placeholder="e.g. Riverside FC" autocomplete="off" />
-      </div>
-      <div class="field">
-        <label for="gdate">Date</label>
-        <input class="input" id="gdate" type="date" value="${todayISO()}" />
-      </div>
+      ${gameFormFields(null)}
       <button class="btn btn-primary" data-act="start-game" ${noPlayers ? 'disabled' : ''}>
         Start Game &rarr;
       </button>
+    </div>
+  `;
+}
+
+function viewEditGame() {
+  const g = getGame(ui.gameId);
+  if (!g) return viewHistory();
+  return `
+    <header class="topbar">
+      <button class="icon-btn" data-act="cancel-edit">&larr;</button>
+      <h1>Edit Game</h1>
+    </header>
+    <div class="card">
+      ${gameFormFields(g)}
+      <button class="btn btn-primary" data-act="save-game">Save Changes</button>
+      <button class="btn btn-ghost btn-block" data-act="cancel-edit">Cancel</button>
     </div>
   `;
 }
@@ -522,7 +602,10 @@ function viewGame() {
   return `
     <header class="game-head">
       <button class="icon-btn" data-act="nav:home">&larr;</button>
-      <span class="opp-name">vs ${esc(g.opponent)}</span>
+      <div class="gh-title">
+        <span class="opp-name">vs ${esc(g.opponent)}</span>
+        ${g.tournament ? `<span class="gh-tourney">&#127942; ${esc(g.tournament)}</span>` : ''}
+      </div>
       <button class="icon-btn" data-act="end-game">End Game</button>
     </header>
 
@@ -664,6 +747,7 @@ function viewSummary() {
     </header>
 
     <div class="result-banner banner-${r}">
+      ${g.tournament ? `<div class="tourney-tag">&#127942; ${esc(g.tournament)}</div>` : ''}
       <div class="rtxt">${isLive ? 'In Progress' : resultWord}</div>
       <div class="rscore">${u} &ndash; ${t}</div>
       <div class="rsub">vs ${esc(g.opponent)} &middot; ${fmtDate(g.date)}</div>
@@ -693,7 +777,11 @@ function viewSummary() {
 
     ${isLive
       ? `<button class="btn btn-primary btn-block" data-act="open-game-live">Back to Live Game</button>`
-      : `<button class="btn btn-primary btn-block" data-act="nav:home">Done</button>`}
+      : `<div class="btn-row">
+           <button class="btn btn-ghost" data-act="edit-game">Edit Details</button>
+           <button class="btn btn-danger" data-act="delete-game">Delete Game</button>
+         </div>
+         <button class="btn btn-primary btn-block" data-act="nav:home">Done</button>`}
   `;
 }
 
@@ -792,13 +880,37 @@ function handleAct(act, target) {
 
   if (act === 'open-game-live') return go('game', ui.gameId);
 
-  // new game
-  if (act === 'start-game') {
+  if (act === 'edit-game') return go('editgame', ui.gameId);
+  if (act === 'cancel-edit') return go('summary', ui.gameId);
+
+  if (act === 'delete-game') {
+    const game = getGame(ui.gameId);
+    if (game && confirm(`Delete the game vs ${game.opponent}? This can't be undone.`)) {
+      deleteGame(game.id);
+      toast('Game deleted');
+      return go('history');
+    }
+    return;
+  }
+
+  // new game / edit game form
+  if (act === 'start-game' || act === 'save-game') {
     const opp = (document.getElementById('opp').value || '').trim();
     const date = document.getElementById('gdate').value || todayISO();
+    const isT = document.getElementById('is-tourney').checked;
+    const tName = (document.getElementById('tourney').value || '').trim();
     if (!opp) { toast('Enter an opponent name'); return; }
-    const g = createGame(opp, date);
-    return go('game', g.id);
+    if (isT && !tName) { toast('Enter the tournament name'); return; }
+    const tournament = isT ? tName : null;
+    if (act === 'save-game') {
+      const game = getGame(ui.gameId);
+      if (!game) return go('history');
+      updateGame(game, opp, date, tournament);
+      toast('Game updated');
+      return go('summary', game.id);
+    }
+    const created = createGame(opp, date, tournament);
+    return go('game', created.id);
   }
 
   // roster
@@ -952,16 +1064,28 @@ modalRoot.addEventListener('click', (ev) => {
   // backdrop click handled via data-act on backdrop element itself
 });
 
-// Submit roster / new game inputs with Enter
+// Submit roster / game-form inputs with Enter
 app.addEventListener('keydown', (ev) => {
   if (ev.key !== 'Enter') return;
   const id = ev.target && ev.target.id;
   if (id === 'pname' || id === 'pnum') {
     ev.preventDefault();
     handleAct('add-player', ev.target);
-  } else if (id === 'opp') {
+  } else if (id === 'opp' || id === 'tourney') {
     ev.preventDefault();
-    handleAct('start-game', ev.target);
+    handleAct(ui.view === 'editgame' ? 'save-game' : 'start-game', ev.target);
+  }
+});
+
+// Reveal the tournament name field when the checkbox is ticked
+app.addEventListener('change', (ev) => {
+  if (ev.target && ev.target.id === 'is-tourney') {
+    const field = document.getElementById('tourney-field');
+    if (field) field.hidden = !ev.target.checked;
+    if (ev.target.checked) {
+      const inp = document.getElementById('tourney');
+      if (inp) inp.focus();
+    }
   }
 });
 
