@@ -9,14 +9,10 @@
   "assets": {
     "directory": "./",
     "binding": "ASSETS"
-  }
+  },
 
-  // Cloud sync needs a KV namespace. Create one in the Cloudflare dashboard
-  // (Storage & Databases -> KV -> Create), then add its ID here, e.g.:
-  //
-  //   ,"kv_namespaces": [
-  //     { "binding": "SOCCER_KV", "id": "your-kv-namespace-id" }
-  //   ]
-  //
-  // The binding name must be exactly SOCCER_KV.
+  // KV namespace backing Cloud Sync. The binding name must stay SOCCER_KV.
+  "kv_namespaces": [
+    { "binding": "SOCCER_KV", "id": "208e70142f6b49619f2310818ed46872" }
+  ]
 }

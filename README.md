@@ -12,6 +12,7 @@ is stored locally on your device.
   - **Shot on Goal** → choose who took it from a roster modal.
   - **Goal** → choose the scorer, then the assist (or "unassisted").
   - **Save** → choose which keeper made it.
+  - **Opponent Shot** → one tap to log a shot on goal by the other team.
   - **Opponent Goal** → one tap, keeps the scoreline accurate.
 - **Live scoreboard** on the game screen and the current score on the Home screen.
 - **Game feed** with every event; tap the × to undo a mis-tap.
@@ -38,8 +39,9 @@ is stored locally on your device.
 
 1. **Roster** tab — add your players (name + optional jersey number).
 2. **Home** → **Start New Game** — enter the opponent and date.
-3. On the game screen, tap **Start** to run the half timer and use the four
-   action buttons to log events as they happen.
+3. On the game screen, tap **Start** to run the half timer (tap **+10s** to
+   nudge the clock forward if you started it late) and use the action buttons
+   to log events as they happen.
 4. Tap **End 1st Half** at the break, then **Start** again for the 2nd half.
 5. Tap **End Game** to finish and see the full stats.
 6. Find past games and season stats under the **Games** tab.
