@@ -758,13 +758,17 @@ function viewGame() {
         <span class="ai">&#9917;</span><span class="at">Goal!</span>
         <span class="ac">${usScore(g)} scored</span>
       </button>
-      <button class="action-btn" data-act="act-save">
-        <span class="ai">&#129508;</span><span class="at">Save</span>
-        <span class="ac">${countType(g, 'save')} logged</span>
+      <button class="action-btn action-opp" data-act="act-opp-shot">
+        <span class="ai">&#127919;</span><span class="at">Opponent Shot</span>
+        <span class="ac">${countType(g, 'opponent_shot')} logged</span>
       </button>
       <button class="action-btn action-opp" data-act="act-opp">
         <span class="ai">&#128683;</span><span class="at">Opponent Goal</span>
         <span class="ac">${themScore(g)} against</span>
+      </button>
+      <button class="action-btn action-wide" data-act="act-save">
+        <span class="ai">&#129508;</span><span class="at">Save</span>
+        <span class="ac">${countType(g, 'save')} logged</span>
       </button>
     </div>
 
@@ -791,6 +795,9 @@ function eventMeta(e) {
     case 'opponent_goal':
       return { cls: 'edot-opp', icon: '&#128683;', title: 'Opponent goal',
         sub: 'Conceded' };
+    case 'opponent_shot':
+      return { cls: 'edot-opp', icon: '&#127919;', title: 'Opponent shot',
+        sub: 'On goal' };
     default:
       return { cls: 'edot-shot', icon: '?', title: e.type, sub: '' };
   }
@@ -823,6 +830,9 @@ function viewSummary() {
   const assists = g.events.filter((e) => e.type === 'goal' && e.assistId).length;
   const attempts = shots + u;
   const conv = attempts ? Math.round((u / attempts) * 100) : 0;
+  const oppShots = countType(g, 'opponent_shot');
+  const oppAttempts = oppShots + t;
+  const oppConv = oppAttempts ? Math.round((t / oppAttempts) * 100) : 0;
 
   const isLive = g.status === 'in_progress';
 
@@ -888,9 +898,11 @@ function viewSummary() {
         <div class="stat-box"><div class="v">${u}</div><div class="k">Goals</div></div>
         <div class="stat-box"><div class="v">${assists}</div><div class="k">Assists</div></div>
         <div class="stat-box"><div class="v">${shots}</div><div class="k">Shots o.G.</div></div>
-        <div class="stat-box"><div class="v">${saves}</div><div class="k">Saves</div></div>
         <div class="stat-box"><div class="v">${conv}%</div><div class="k">Conversion</div></div>
+        <div class="stat-box"><div class="v">${saves}</div><div class="k">Saves</div></div>
         <div class="stat-box"><div class="v">${t}</div><div class="k">Conceded</div></div>
+        <div class="stat-box"><div class="v">${oppShots}</div><div class="k">Opp. shots o.G.</div></div>
+        <div class="stat-box"><div class="v">${oppConv}%</div><div class="k">Opp. conversion</div></div>
       </div>
     </div>
 
@@ -1216,6 +1228,13 @@ function handleAct(act, target) {
         });
       }
     });
+  }
+
+  if (act === 'act-opp-shot') {
+    addEvent(g, 'opponent_shot', {});
+    render();
+    toast('Opponent shot recorded');
+    return;
   }
 
   if (act === 'act-opp') {

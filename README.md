@@ -12,6 +12,7 @@ is stored locally on your device.
   - **Shot on Goal** → choose who took it from a roster modal.
   - **Goal** → choose the scorer, then the assist (or "unassisted").
   - **Save** → choose which keeper made it.
+  - **Opponent Shot** → one tap to log a shot on goal by the other team.
   - **Opponent Goal** → one tap, keeps the scoreline accurate.
 - **Live scoreboard** on the game screen and the current score on the Home screen.
 - **Game feed** with every event; tap the × to undo a mis-tap.
