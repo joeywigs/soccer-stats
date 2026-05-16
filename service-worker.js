@@ -1,4 +1,4 @@
-const CACHE = 'soccer-stats-v1';
+const CACHE = 'soccer-stats-v2';
 const ASSETS = [
   './',
   './index.html',
@@ -24,6 +24,8 @@ self.addEventListener('activate', (e) => {
 
 self.addEventListener('fetch', (e) => {
   if (e.request.method !== 'GET') return;
+  // never cache the sync API — always hit the network
+  if (new URL(e.request.url).pathname.startsWith('/api/')) return;
   e.respondWith(
     caches.match(e.request).then((cached) => {
       const network = fetch(e.request)
