@@ -310,6 +310,28 @@ input, select { font-family: inherit; }
   margin-bottom: 4px;
 }
 
+.code-box {
+  font-family: ui-monospace, Menlo, Consolas, monospace;
+  font-size: 21px;
+  font-weight: 700;
+  letter-spacing: .04em;
+  background: var(--bg-2);
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  padding: 14px;
+  text-align: center;
+  color: var(--accent);
+  word-break: break-all;
+  margin-bottom: 12px;
+}
+.sync-status {
+  font-size: 14px;
+  color: var(--muted);
+  text-align: center;
+  margin-bottom: 14px;
+}
+.sync-status.err { color: #ff8a8d; }
+
 /* ---------- Roster ---------- */
 .player-row {
   display: flex;

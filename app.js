@@ -16,7 +16,10 @@ let ui = { view: 'home', gameId: null };
 let pendingPick = null; // callback for the active roster picker
 
 function defaultState() {
-  return { version: 1, roster: [], games: [], activeGameId: null, opponents: [], tournaments: [] };
+  return {
+    version: 1, roster: [], games: [], activeGameId: null,
+    opponents: [], tournaments: [], updatedAt: 0
+  };
 }
 
 function registerInto(list, name) {
@@ -33,6 +36,7 @@ function loadState() {
     s.games = s.games || [];
     s.opponents = s.opponents || [];
     s.tournaments = s.tournaments || [];
+    s.updatedAt = s.updatedAt || 0;
     for (const g of s.games) {
       registerInto(s.opponents, g.opponent);
       registerInto(s.tournaments, g.tournament);
@@ -44,11 +48,117 @@ function loadState() {
 }
 
 function save() {
+  state.updatedAt = Date.now();
   try {
     localStorage.setItem(STORE_KEY, JSON.stringify(state));
   } catch (e) {
     /* storage full / unavailable — keep running in-memory */
   }
+  scheduleCloudPush();
+}
+
+/* ---------------- Cloud sync (Cloudflare) ---------------- */
+
+const SYNC_CODE_KEY = 'soccerStats.syncCode';
+const SYNC_API = '/api/sync';
+let sync = { status: 'off', lastSynced: 0, error: null };
+let pushTimer = null;
+
+function syncCode() {
+  return localStorage.getItem(SYNC_CODE_KEY) || '';
+}
+
+function setSyncCode(code) {
+  if (code) localStorage.setItem(SYNC_CODE_KEY, code);
+  else localStorage.removeItem(SYNC_CODE_KEY);
+}
+
+function generateSyncCode() {
+  const chars = 'abcdefghjkmnpqrstuvwxyz23456789';
+  const rnd = new Uint8Array(16);
+  crypto.getRandomValues(rnd);
+  let out = '';
+  for (let i = 0; i < 16; i++) {
+    out += chars[rnd[i] % chars.length];
+    if (i % 4 === 3 && i < 15) out += '-';
+  }
+  return out;
+}
+
+function setSyncState(status, extra) {
+  sync = Object.assign({ status: status, lastSynced: sync.lastSynced, error: null }, extra || {});
+  if (ui.view === 'sync') render();
+}
+
+function scheduleCloudPush() {
+  if (!syncCode()) return;
+  clearTimeout(pushTimer);
+  pushTimer = setTimeout(cloudPush, 1200);
+}
+
+async function cloudPush() {
+  const code = syncCode();
+  if (!code) return;
+  setSyncState('syncing');
+  try {
+    const res = await fetch(SYNC_API, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'X-Sync-Code': code },
+      body: JSON.stringify(state)
+    });
+    if (!res.ok) throw new Error('server returned ' + res.status);
+    setSyncState('ok', { lastSynced: Date.now() });
+  } catch (e) {
+    setSyncState('error', { error: e.message || String(e) });
+  }
+}
+
+async function cloudPull() {
+  const code = syncCode();
+  if (!code) return;
+  setSyncState('syncing');
+  try {
+    const res = await fetch(SYNC_API, { headers: { 'X-Sync-Code': code } });
+    if (!res.ok) throw new Error('server returned ' + res.status);
+    const remote = await res.json();
+    const remoteAt = (remote && remote.updatedAt) || 0;
+    const localAt = state.updatedAt || 0;
+    if (remote && typeof remote === 'object' && remoteAt > localAt) {
+      adoptState(remote);
+      setSyncState('ok', { lastSynced: Date.now() });
+      render();
+    } else if (localAt > remoteAt) {
+      await cloudPush();
+    } else {
+      setSyncState('ok', { lastSynced: Date.now() });
+    }
+  } catch (e) {
+    setSyncState('error', { error: e.message || String(e) });
+  }
+}
+
+function adoptState(remote) {
+  state = remote;
+  state.roster = state.roster || [];
+  state.games = state.games || [];
+  state.opponents = state.opponents || [];
+  state.tournaments = state.tournaments || [];
+  state.updatedAt = state.updatedAt || 0;
+  try {
+    localStorage.setItem(STORE_KEY, JSON.stringify(state));
+  } catch (e) { /* ignore */ }
+  if (ui.gameId && !getGame(ui.gameId)) { ui.view = 'home'; ui.gameId = null; }
+}
+
+function connectSync(code) {
+  setSyncCode((code || '').trim().toLowerCase());
+  setSyncState('syncing');
+  cloudPull();
+}
+
+function disconnectSync() {
+  setSyncCode('');
+  setSyncState('off');
 }
 
 /* ---------------- Helpers ---------------- */
@@ -80,6 +190,16 @@ function fmtClock(totalSec) {
   const s = Math.max(0, Math.floor(totalSec));
   const m = Math.floor(s / 60);
   return `${m}:${String(s % 60).padStart(2, '0')}`;
+}
+
+function timeAgo(ts) {
+  if (!ts) return 'never';
+  const s = Math.floor((Date.now() - ts) / 1000);
+  if (s < 10) return 'just now';
+  if (s < 60) return s + 's ago';
+  if (s < 3600) return Math.floor(s / 60) + 'm ago';
+  if (s < 86400) return Math.floor(s / 3600) + 'h ago';
+  return Math.floor(s / 86400) + 'd ago';
 }
 
 function getGame(id) {
@@ -316,6 +436,7 @@ function render() {
     case 'editgame': html = viewEditGame(); break;
     case 'game': html = viewGame(); break;
     case 'summary': html = viewSummary(); break;
+    case 'sync': html = viewSync(); break;
     default: html = viewHome();
   }
   app.innerHTML = html;
@@ -389,6 +510,9 @@ function viewHome() {
     <header class="topbar brand">
       <img src="icon.svg" alt="" />
       <h1>Soccer Stats</h1>
+      <span class="spacer"></span>
+      <button class="icon-btn ${sync.status === 'error' ? 'icon-btn-danger' : ''}"
+        data-act="nav:sync" aria-label="Cloud sync">&#9729;&#65039;</button>
     </header>
     ${liveCard}
     ${recordCard}
@@ -798,6 +922,60 @@ function eventRowReadOnly(e) {
   </div>`;
 }
 
+/* ----- Cloud sync screen ----- */
+
+function viewSync() {
+  const code = syncCode();
+  const connected = !!code;
+
+  let statusLine = 'Connected';
+  if (sync.status === 'syncing') statusLine = 'Syncing&hellip;';
+  else if (sync.status === 'error') statusLine = 'Sync failed: ' + esc(sync.error || 'unknown') + ' &middot; will retry';
+  else if (sync.status === 'ok') statusLine = 'Backed up ' + timeAgo(sync.lastSynced);
+  const statusCls = sync.status === 'error' ? 'sync-status err' : 'sync-status';
+
+  const body = connected
+    ? `<div class="card">
+        <div class="card-title">Your sync code</div>
+        <div class="code-box">${esc(code)}</div>
+        <div class="${statusCls}">${statusLine}</div>
+        <button class="btn btn-primary" data-act="sync-now">Sync Now</button>
+        <button class="btn btn-ghost btn-block" data-act="sync-disconnect">Disconnect</button>
+      </div>
+      <div class="card">
+        <p class="empty" style="padding:4px 2px;text-align:left">
+          Your stats are backed up to the cloud after every change. To load them
+          on another device, open its Cloud Sync screen and enter this exact code.
+          Anyone with the code can see your stats &mdash; keep it private.
+        </p>
+      </div>`
+    : `<div class="card">
+        <p class="empty" style="padding:2px 2px 14px;text-align:left">
+          Back up your stats to the cloud so they survive a lost phone, and load
+          them on another device with the same code.
+        </p>
+        <div class="field">
+          <label for="synccode">Sync code</label>
+          <input class="input" id="synccode" type="text" autocomplete="off"
+            autocapitalize="off" spellcheck="false" placeholder="Enter or generate a code" />
+        </div>
+        <button class="btn btn-ghost" data-act="sync-generate">Generate a Code</button>
+        <button class="btn btn-primary btn-block" data-act="sync-connect">Start Syncing</button>
+        <p class="empty" style="padding:14px 2px 0;text-align:left;font-size:13px">
+          This code is your password. Write it down &mdash; you'll need it to
+          restore your data or sync another device. There's no way to recover it.
+        </p>
+      </div>`;
+
+  return `
+    <header class="topbar">
+      <button class="icon-btn" data-act="nav:home">&larr;</button>
+      <h1>Cloud Sync</h1>
+    </header>
+    ${body}
+  `;
+}
+
 /* ---------------- Modal (roster picker) ---------------- */
 
 const modalRoot = document.getElementById('modal-root');
@@ -865,7 +1043,35 @@ function handleAct(act, target) {
   if (act === 'nav:home' || act === 'back:home') return go('home');
   if (act === 'nav:history') return go('history');
   if (act === 'nav:roster') return go('roster');
+  if (act === 'nav:sync') return go('sync');
   if (act === 'go:newgame') return go('newgame');
+
+  // cloud sync
+  if (act === 'sync-generate') {
+    const inp = document.getElementById('synccode');
+    if (inp) inp.value = generateSyncCode();
+    return;
+  }
+  if (act === 'sync-connect') {
+    const inp = document.getElementById('synccode');
+    const code = (inp ? inp.value : '').trim().toLowerCase();
+    if (code.length < 6) { toast('Code must be at least 6 characters'); return; }
+    connectSync(code);
+    render();
+    toast('Cloud sync turned on');
+    return;
+  }
+  if (act === 'sync-now') {
+    cloudPull();
+    return render();
+  }
+  if (act === 'sync-disconnect') {
+    if (confirm('Disconnect cloud sync on this device? Your stats stay on this phone — this only stops backing them up.')) {
+      disconnectSync();
+      render();
+    }
+    return;
+  }
 
   if (act === 'resume') {
     const g = activeGame();
@@ -1075,6 +1281,9 @@ app.addEventListener('keydown', (ev) => {
   } else if (id === 'opp' || id === 'tourney') {
     ev.preventDefault();
     handleAct(ui.view === 'editgame' ? 'save-game' : 'start-game', ev.target);
+  } else if (id === 'synccode') {
+    ev.preventDefault();
+    handleAct('sync-connect', ev.target);
   }
 });
 
@@ -1119,5 +1328,7 @@ if ('serviceWorker' in navigator) {
     ui.view = 'game';
     ui.gameId = ag.id;
   }
+  if (syncCode()) sync.status = 'syncing';
   render();
+  if (syncCode()) cloudPull();
 })();
