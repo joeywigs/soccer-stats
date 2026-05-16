@@ -54,30 +54,29 @@ is stored locally on your device.
 | `manifest.webmanifest` | PWA metadata |
 | `service-worker.js` | Offline caching |
 | `icon.svg` | App icon |
-| `functions/api/sync.js` | Cloudflare Pages Function for cloud sync |
+| `worker.js` | Cloudflare Worker entry — serves the app and the sync API |
+| `wrangler.jsonc` | Cloudflare Worker configuration |
+| `functions/api/sync.js` | Shared cloud-sync logic (used by the Worker) |
 
-## Deploying to Cloudflare Pages (with cloud sync)
+## Deploying to Cloudflare (with cloud sync)
 
-The app works fully on its own, but to enable **Cloud Sync** it needs to run on
-Cloudflare Pages with a KV namespace. One-time setup (free tier is plenty):
+The app works fully on its own, but to enable **Cloud Sync** it needs to run as
+a Cloudflare Worker with a KV namespace. One-time setup (free tier is plenty):
 
 1. **Create a KV namespace.** In the Cloudflare dashboard go to
    **Storage & Databases → KV → Create a namespace**, name it e.g.
-   `soccer-stats`.
-2. **Create the Pages project.** Go to **Workers & Pages → Create → Pages →
-   Connect to Git**, pick this repository. For build settings choose:
-   - Framework preset: **None**
-   - Build command: *(leave empty)*
-   - Build output directory: **`/`**
-3. **Bind the KV namespace.** In the Pages project, open **Settings → Bindings
-   → Add → KV namespace**. Set the variable name to **`SOCCER_KV`** (this exact
-   name) and select the namespace from step 1. Add it for Production (and
-   Preview if you want).
-4. **Redeploy** (Deployments → retry, or push a commit). Your app is now live at
-   `https://<project>.pages.dev`.
+   `soccer-stats`. Copy the **Namespace ID** it gives you.
+2. **Add the KV ID to `wrangler.jsonc`.** Uncomment the `kv_namespaces` block at
+   the bottom of `wrangler.jsonc` and paste your namespace ID. The binding name
+   must stay exactly `SOCCER_KV`.
+3. **Create the Worker.** In the dashboard go to **Workers & Pages → Create →
+   Import a repository**, pick this repo. Cloudflare reads `wrangler.jsonc`
+   automatically — no build command is needed. Make sure the Worker's **name**
+   matches the `name` in `wrangler.jsonc`.
+4. **Deploy.** Your app is live at `https://<name>.<subdomain>.workers.dev`, and
+   every push to the repo auto-deploys.
 
-Every push to the repo auto-deploys. The sync API lives at `/api/sync` and is
-served from the same domain as the app.
+The sync API lives at `/api/sync` on the same domain as the app.
 
 ### Using Cloud Sync
 
@@ -95,8 +94,8 @@ Plain HTML/CSS/JS — serve the folder over HTTP (a service worker needs
 python3 -m http.server 8000
 ```
 
-Then open `http://localhost:8000`. Cloud Sync needs the Cloudflare deployment
-above; everything else works locally.
+Then open `http://localhost:8000`. Cloud Sync needs the Cloudflare Worker
+deployment above; everything else works locally.
 
 ## Data & privacy
 
