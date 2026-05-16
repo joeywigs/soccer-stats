@@ -156,6 +156,14 @@ input, select { font-family: inherit; }
   line-height: 1;
 }
 .hero-score .dash { color: var(--muted); margin: 0 6px; }
+.live-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  margin-bottom: 12px;
+}
+.live-head .tourney-tag { margin-bottom: 0; }
 .live-pill {
   display: inline-flex;
   align-items: center;
@@ -277,6 +285,34 @@ input, select { font-family: inherit; }
 .row-2 .field { flex: 1; }
 .w-num { width: 96px; flex: none !important; }
 
+.check-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  font-size: 15px;
+  font-weight: 600;
+  padding: 2px 0 14px;
+  cursor: pointer;
+}
+.check-row input[type="checkbox"] {
+  width: 22px;
+  height: 22px;
+  accent-color: var(--green);
+  flex-shrink: 0;
+}
+
+.btn-row { display: flex; gap: 10px; margin-top: 10px; }
+.btn-row .btn { flex: 1; }
+
+.tourney-tag {
+  font-size: 12px;
+  font-weight: 800;
+  letter-spacing: .07em;
+  text-transform: uppercase;
+  color: var(--accent);
+  margin-bottom: 4px;
+}
+
 /* ---------- Roster ---------- */
 .player-row {
   display: flex;
@@ -309,7 +345,10 @@ input, select { font-family: inherit; }
   gap: 10px;
   margin-bottom: 12px;
 }
-.game-head .opp-name { font-size: 18px; font-weight: 800; flex: 1; min-width: 0;
+.game-head .gh-title { flex: 1; min-width: 0; display: flex; flex-direction: column; }
+.game-head .opp-name { font-size: 18px; font-weight: 800;
+  overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.game-head .gh-tourney { font-size: 12px; font-weight: 700; color: var(--accent);
   overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 
 .scoreboard {

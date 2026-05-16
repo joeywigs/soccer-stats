@@ -20,6 +20,13 @@ is stored locally on your device.
   timeline.
 - **Games history** — every past game with opponent, date, score and a W/L/D
   result chip; tap any game to reopen its full stats.
+- **Edit or delete games** — fix a finished game's opponent, date or tournament,
+  or remove it entirely, from its stats screen.
+- **Opponent memory** — the New Game opponent box is a dropdown of teams you've
+  played before (type a new one and it's remembered). Deleting a game keeps the
+  team in the list.
+- **Tournament games** — tick a box to mark a game as a tournament game and name
+  the tournament; it's labelled on the game, history and stats screens.
 - **Roster management** — add players with names and numbers; each player shows
   running season totals.
 - **Season record** — W/D/L and goals for/against across all games.
